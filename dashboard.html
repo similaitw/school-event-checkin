@@ -1,0 +1,378 @@
+<!-- 
+設定說明：
+請將下方引號內的網址，換成你部署 Google Apps Script 後取得的網址
+-->
+<script>
+    // ▼▼▼ 這裡非常重要！請把下方的文字換成您的 Google Apps Script 網址 (以 https://script.google.com 開頭) ▼▼▼
+    const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxJvENN4tRWPswrUmSt_r54igfcABea6j3wTs5SQ2PjPgnzQo7ZW2bHvHGgdwl3li4/exec'; 
+</script>
+
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>司儀即時儀表板</title>
+    <style>
+        body { font-family: "Microsoft JhengHei", sans-serif; background-color: #1a1a1a; color: white; margin: 0; padding: 20px; }
+        .container { max-width: 900px; margin: 0 auto; }
+        
+        h1 { text-align: center; color: #f1c40f; border-bottom: 2px solid #333; padding-bottom: 20px; font-size: 36px; margin-bottom: 30px; }
+        
+        /* 工具列 */
+        .toolbar { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 30px; background: #2d2d2d; padding: 20px; border-radius: 12px; border-left: 5px solid #666; align-items: center; }
+        
+        select, input[type="text"] { padding: 12px; font-size: 16px; border: 1px solid #444; border-radius: 8px; background: #1a1a1a; color: white; outline: none; font-weight: bold; }
+        select:focus, input:focus { border-color: #f1c40f; }
+        .search-input { flex: 2; min-width: 150px; color: #f1c40f; }
+        .filter-select { flex: 1; min-width: 130px; cursor: pointer; }
+
+        /* 複選篩選按鈕樣式 */
+        .filter-checkbox-group { display: flex; gap: 8px; flex-wrap: wrap; }
+        .filter-checkbox-label {
+            display: flex;
+            align-items: center;
+            padding: 10px 15px;
+            background: #444;
+            border: 1px solid #555;
+            border-radius: 8px;
+            cursor: pointer;
+            user-select: none;
+            transition: all 0.2s;
+            font-size: 14px;
+            color: #ccc;
+        }
+        .filter-checkbox-label:hover { background: #555; }
+        
+        /* 隱藏原生 checkbox */
+        .filter-checkbox-label input { display: none; }
+
+        /* 選中時的樣式 */
+        .filter-checkbox-label:has(input:checked) {
+            border-color: #f1c40f;
+            background: #3a3222;
+            color: #f1c40f;
+            font-weight: bold;
+            box-shadow: 0 0 5px rgba(241, 196, 15, 0.3);
+        }
+
+        /* 卡片樣式 */
+        .guest-card { 
+            background: #2d2d2d; 
+            padding: 25px; 
+            margin-bottom: 20px; 
+            border-radius: 12px; 
+            border-left: 10px solid #555; /* 預設灰色 */
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+            position: relative;
+            transition: border-color 0.3s, background-color 0.3s; 
+        }
+        
+        /* VIP 卡片樣式 */
+        .guest-card.vip-card {
+            border-left: 10px solid #f1c40f;
+            background: #3a3222; 
+        }
+
+        /* 只有新資料才套用這個動畫 class */
+        .slide-in {
+            animation: slideIn 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        @keyframes slideIn { 
+            from { opacity: 0; transform: translateY(20px); } 
+            to { opacity: 1; transform: translateY(0); } 
+        }
+
+        .info-group { display: flex; flex-direction: column; gap: 5px; flex: 2; }
+        .name-row { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap;}
+        .title { font-size: 28px; color: #f1c40f; font-weight: normal; } 
+        .name { font-size: 42px; font-weight: bold; color: #fff; letter-spacing: 1px; } 
+        
+        .event-badge { font-size: 14px; color: #aaa; background: rgba(255, 255, 255, 0.1); padding: 4px 8px; border-radius: 4px; display: inline-block; width: fit-content; }
+        .time-badge { font-size: 16px; color: #888; background: #000; padding: 8px 12px; border-radius: 6px; font-family: monospace;}
+        
+        /* 司儀控制按鈕區 */
+        .mc-controls {
+            display: flex;
+            gap: 8px;
+            margin-left: 20px;
+        }
+        
+        .tag-btn {
+            background: #444;
+            border: 1px solid #555;
+            color: #aaa;
+            padding: 8px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        
+        .tag-btn:hover { background: #555; }
+        
+        /* 啟用狀態的按鈕 */
+        .tag-btn.active-vip { background: #f1c40f; color: #000; border-color: #f1c40f; font-weight: bold; }
+        .tag-btn.active-intro { background: #28a745; color: #fff; border-color: #28a745; }
+        .tag-btn.active-speech { background: #17a2b8; color: #fff; border-color: #17a2b8; }
+
+        .empty-msg { text-align: center; font-size: 24px; color: #555; margin-top: 50px; }
+        .error-msg { text-align: center; color: #ff6b6b; background: rgba(255,0,0,0.1); padding: 20px; border-radius: 10px; border: 1px solid #ff6b6b; margin-top: 20px; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>🎤 現場貴賓即時名單 (司儀端)</h1>
+
+    <div class="toolbar">
+        <select id="eventFilter" class="filter-select" onchange="renderList()">
+            <option value="all">📅 所有活動</option>
+        </select>
+
+        <!-- 複選篩選區 -->
+        <div class="filter-checkbox-group">
+            <label class="filter-checkbox-label">
+                <input type="checkbox" id="chk-vip" onchange="renderList()"> ⭐ 僅顯示 VIP
+            </label>
+            <label class="filter-checkbox-label">
+                <input type="checkbox" id="chk-unintro" onchange="renderList()"> ✅ 尚未介紹
+            </label>
+            <label class="filter-checkbox-label">
+                <input type="checkbox" id="chk-unspeech" onchange="renderList()"> 🎤 尚未致詞
+            </label>
+        </div>
+
+        <input type="text" id="searchInput" class="search-input" placeholder="🔍 搜尋姓名..." oninput="renderList()">
+        
+        <select id="sortSelect" class="filter-select" onchange="renderList()">
+            <option value="newest">🕒 最新報到</option>
+            <option value="oldest">🕒 最早報到</option>
+            <option value="name">🔤 姓名排序</option>
+        </select>
+    </div>
+
+    <div id="displayList">
+        <div class="empty-msg">等待資料同步...</div>
+    </div>
+</div>
+
+<script>
+    // 檢查網址設定
+    function checkUrl() {
+        if (SCRIPT_URL.includes('你的_GOOGLE') || SCRIPT_URL === '') {
+            document.getElementById('displayList').innerHTML = `
+                <div class="error-msg">
+                    ⚠️ <strong>尚未設定連線網址</strong><br>
+                    請用記事本打開此檔案 (dashboard.html)，<br>
+                    將第 5 行的 SCRIPT_URL 換成您的 Google Apps Script 網址。
+                </div>`;
+            return false;
+        }
+        return true;
+    }
+
+    let allGuests = [];
+    let eventList = new Set();
+    let isProcessing = false; // 鎖定狀態
+    let seenIds = new Set();  // 記錄已經顯示過的 ID
+
+    function fetchData() {
+        if (!checkUrl()) return;
+        
+        // 1. 發送前檢查：如果正在操作按鈕，直接不發送請求
+        if (isProcessing) return;
+
+        fetch(SCRIPT_URL + '?t=' + new Date().getTime())
+        .then(res => {
+            if (!res.ok) throw new Error("網路回應錯誤");
+            return res.json();
+        })
+        .then(data => {
+            // 2. 接收後檢查
+            if (isProcessing) {
+                console.log("操作中，忽略此次舊資料更新");
+                return;
+            }
+
+            allGuests = data.filter(g => g.status === '在場');
+            updateEventFilter(allGuests);
+            renderList();
+        })
+        .catch(err => {
+            console.error("同步失敗:", err);
+            if(allGuests.length === 0) {
+                document.getElementById('displayList').innerHTML = '<div class="empty-msg">連線中...</div>';
+            }
+        });
+    }
+
+    function updateEventFilter(data) {
+        const select = document.getElementById('eventFilter');
+        const currentVal = select.value;
+        data.forEach(g => { if(g.eventName) eventList.add(g.eventName); });
+
+        let optionsHtml = '<option value="all">📅 所有活動</option>';
+        eventList.forEach(evt => { optionsHtml += `<option value="${evt}">${evt}</option>`; });
+        
+        if (select.innerHTML !== optionsHtml && eventList.size > 0) {
+            select.innerHTML = optionsHtml;
+            select.value = currentVal;
+        }
+    }
+
+    // 切換標籤狀態
+    function toggleTag(id, tagType) {
+        if (!checkUrl()) return;
+
+        const guestIndex = allGuests.findIndex(g => g.id.toString() === id.toString());
+        if (guestIndex === -1) return;
+
+        const guest = allGuests[guestIndex];
+        let currentTags = guest.tags ? guest.tags.split(',') : [];
+        
+        // 切換邏輯
+        if (currentTags.includes(tagType)) {
+            currentTags = currentTags.filter(t => t !== tagType);
+        } else {
+            currentTags.push(tagType);
+        }
+        
+        const newTagsStr = currentTags.join(',');
+        
+        // 1. 樂觀更新 (立刻改變畫面)
+        guest.tags = newTagsStr;
+        renderList();
+        
+        // 2. 背景發送 & 鎖定更新
+        isProcessing = true; // 鎖定自動更新，這段時間內 fetchData 接收到的資料會被丟棄
+        fetch(SCRIPT_URL, {
+            method: 'POST',
+            body: JSON.stringify({ action: 'update_tags', id: id, tags: newTagsStr })
+        })
+        .then(res => {
+            if (!res.ok) throw new Error("Server Error");
+            return res.json();
+        })
+        .then(() => { 
+            // 3. 成功後，延遲 4 秒再解除鎖定
+            // 讓 Google Sheet 有時間存檔
+            setTimeout(() => { isProcessing = false; }, 4000); 
+        })
+        .catch(err => {
+            alert("⚠️ 更新失敗！請檢查網路。");
+            console.error(err);
+            isProcessing = false; // 失敗立刻解鎖讓它重抓
+        });
+    }
+
+    function renderList() {
+        const listDiv = document.getElementById('displayList');
+        const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+        const sortType = document.getElementById('sortSelect').value;
+        const eventFilter = document.getElementById('eventFilter').value;
+        
+        // 取得勾選狀態
+        const showVipOnly = document.getElementById('chk-vip').checked;
+        const showUnintroOnly = document.getElementById('chk-unintro').checked;
+        const showUnspeechOnly = document.getElementById('chk-unspeech').checked;
+
+        let filtered = allGuests.filter(guest => {
+            const matchSearch = (guest.name && guest.name.toLowerCase().includes(searchTerm)) || 
+                                (guest.title && guest.title.toLowerCase().includes(searchTerm));
+            const matchEvent = (eventFilter === 'all') || (guest.eventName === eventFilter);
+            
+            // 解析標籤
+            const tags = guest.tags ? guest.tags.split(',') : [];
+            
+            // 複選篩選邏輯 (AND 邏輯: 必須同時符合所有勾選條件)
+            let matchVip = true;
+            let matchIntro = true;
+            let matchSpeech = true;
+
+            if (showVipOnly) {
+                matchVip = tags.includes('VIP');
+            }
+            if (showUnintroOnly) {
+                // "未介紹" 表示標籤裡沒有 'Intro'
+                matchIntro = !tags.includes('Intro');
+            }
+            if (showUnspeechOnly) {
+                // "未致詞" 表示標籤裡沒有 'Speech'
+                matchSpeech = !tags.includes('Speech');
+            }
+
+            return matchSearch && matchEvent && matchVip && matchIntro && matchSpeech;
+        });
+
+        if (sortType === 'newest') filtered.sort((a, b) => b.id - a.id);
+        else if (sortType === 'oldest') filtered.sort((a, b) => a.id - b.id);
+        else if (sortType === 'name') filtered.sort((a, b) => a.name.localeCompare(b.name, "zh-Hant"));
+
+        if (filtered.length === 0) {
+            listDiv.innerHTML = '<div class="empty-msg">查無資料</div>';
+            return;
+        }
+
+        let html = '';
+        filtered.forEach(guest => {
+            const eventHtml = guest.eventName ? `<span class="event-badge">${guest.eventName}</span>` : '';
+            const displayTime = guest.time;
+            
+            // 解析標籤
+            const tags = guest.tags ? guest.tags.split(',') : [];
+            const isVip = tags.includes('VIP');
+            const isIntro = tags.includes('Intro');
+            const isSpeech = tags.includes('Speech');
+
+            const cardClass = isVip ? 'guest-card vip-card' : 'guest-card';
+            
+            let animClass = '';
+            if (!seenIds.has(guest.id)) {
+                animClass = 'slide-in'; 
+                seenIds.add(guest.id);
+            }
+
+            html += `
+            <div class="${cardClass} ${animClass}">
+                <div class="info-group">
+                    ${eventHtml}
+                    <div class="name-row">
+                        <span class="title">${guest.title}</span>
+                        <span class="name">${guest.name}</span>
+                    </div>
+                    <div class="time-badge">🕒 ${displayTime}</div>
+                </div>
+                
+                <div class="mc-controls">
+                    <button class="tag-btn ${isVip ? 'active-vip' : ''}" onclick="toggleTag('${guest.id}', 'VIP')">
+                        ⭐ ${isVip ? 'VIP' : '標記'}
+                    </button>
+                    <button class="tag-btn ${isIntro ? 'active-intro' : ''}" onclick="toggleTag('${guest.id}', 'Intro')">
+                        ✅ ${isIntro ? '已介紹' : '未介紹'}
+                    </button>
+                    <button class="tag-btn ${isSpeech ? 'active-speech' : ''}" onclick="toggleTag('${guest.id}', 'Speech')">
+                        🎤 ${isSpeech ? '已致詞' : '未致詞'}
+                    </button>
+                </div>
+            </div>`;
+        });
+
+        listDiv.innerHTML = html;
+    }
+
+    if(checkUrl()) {
+        fetchData();
+        setInterval(fetchData, 3000);
+    }
+</script>
+
+</body>
+</html>
