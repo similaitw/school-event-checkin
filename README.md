@@ -120,7 +120,7 @@ const SCRIPT_URL = '請將你的_GOOGLE_APPS_SCRIPT_網址貼在這裡';
 
 步驟 4：使用 GitHub Pages 託管前端網頁 (推薦)
 
-這可以讓您獲得一個公開的網址 (例如 https://yourname.github.io/...)，方便分享給工作人員。
+這可以讓您獲得一個公開的網址 (例如 https://yourname.github.io/...)， 方便分享給工作人員。
 
 登入 GitHub，點擊右上角 + > New repository。
 
