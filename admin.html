@@ -1,0 +1,415 @@
+<!-- 
+設定說明：
+請將下方引號內的網址，換成你部署 Google Apps Script 後取得的網址
+-->
+<script>
+    // ▼▼▼ 這裡非常重要！請把下方的文字換成您的 Google Apps Script 網址 (以 https://script.google.com 開頭) ▼▼▼
+    const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxJvENN4tRWPswrUmSt_r54igfcABea6j3wTs5SQ2PjPgnzQo7ZW2bHvHGgdwl3li4/exec'; 
+</script>
+
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>接待處中控台</title>
+    <style>
+        body { font-family: "Microsoft JhengHei", sans-serif; background-color: #f4f6f8; margin: 0; padding: 20px; }
+        .container { max-width: 600px; margin: 0 auto; }
+        
+        .card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); margin-bottom: 20px; }
+        h2 { margin-top: 0; color: #333; text-align: center; }
+        
+        .event-settings { border-left: 5px solid #6f42c1; background: #f3f0ff; }
+        .event-label { display: block; margin-bottom: 5px; color: #6f42c1; font-weight: bold; font-size: 14px; }
+        
+        .event-row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+        .history-select { flex: 1; padding: 10px; border: 1px solid #6f42c1; border-radius: 6px; background: white; cursor: pointer; color: #333; min-width: 140px; }
+        .event-input { flex: 2; padding: 10px; border: 2px solid #6f42c1; border-radius: 6px; font-size: 16px; font-weight: bold; color: #333; box-sizing: border-box; min-width: 180px; }
+        
+        .btn-export-group { display: flex; gap: 5px; }
+        .btn-export { color: white; border: none; padding: 10px 15px; border-radius: 6px; cursor: pointer; font-weight: bold; white-space: nowrap; font-size: 14px; display: flex; align-items: center; gap: 5px; }
+        .btn-csv { background: #28a745; }
+        .btn-csv:hover { background: #218838; }
+        .btn-html { background: #6f42c1; }
+        .btn-html:hover { background: #5a32a3; }
+
+        .input-group { display: flex; gap: 10px; margin-bottom: 10px; }
+        input, select.form-control { flex: 1; padding: 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 16px; box-sizing: border-box; }
+        
+        .btn-group { display: flex; gap: 10px; }
+        .btn-group button { flex: 1; padding: 12px 24px; border-radius: 6px; font-size: 16px; cursor: pointer; font-weight: bold; border: none; }
+        
+        button.primary { background: #007bff; color: white; }
+        button.primary:hover { background: #0056b3; }
+        button.warning { background: #ffc107; color: #333; }
+        button.warning:hover { background: #e0a800; }
+        button.secondary { background: #6c757d; color: white; }
+        button.secondary:hover { background: #5a6268; }
+        button:disabled { background: #ccc !important; cursor: not-allowed; }
+
+        .toolbar { display: flex; gap: 10px; margin-bottom: 15px; background: #e9ecef; padding: 10px; border-radius: 8px; flex-wrap: wrap; }
+        #searchInput { flex: 2; border: 1px solid #ced4da; min-width: 150px; }
+        #sortSelect { flex: 1; border: 1px solid #ced4da; cursor: pointer; }
+
+        .list-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+        .refresh-btn { background: none; border: 1px solid #999; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-size: 14px; }
+        
+        /* 列表項目樣式 */
+        .guest-item { background: white; padding: 15px; margin-bottom: 10px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; border-left: 5px solid #28a745; box-shadow: 0 2px 4px rgba(0,0,0,0.05); transition: all 0.3s; }
+        .guest-item.left { border-left-color: #999; background: #eaeaea; } 
+        .guest-item.left .guest-name { color: #777; text-decoration: line-through; }
+        .guest-item.left .guest-title { background: #ccc; color: #888; }
+        
+        .info { flex: 1; }
+        .name-row { display: flex; align-items: baseline; gap: 8px; }
+        .guest-title { font-size: 14px; color: #555; background: #e9ecef; padding: 3px 8px; border-radius: 4px; font-weight: normal; }
+        .guest-name { font-size: 20px; font-weight: bold; color: #222; }
+        .meta { color: #888; font-size: 13px; margin-top: 6px; display: block;}
+        .event-tag { font-size: 12px; background: #e0d4fc; color: #5b32a8; padding: 2px 6px; border-radius: 4px; margin-right: 5px; }
+        
+        .actions { display: flex; gap: 5px; } 
+        .btn-sm { padding: 6px 12px; border: none; border-radius: 4px; cursor: pointer; font-size: 14px; }
+        .btn-edit { background: #ffc107; color: #333; }
+        .btn-status { background: #17a2b8; color: white; } 
+        .btn-status.restore { background: #28a745; } 
+
+        .loading { text-align: center; color: #666; padding: 20px; }
+        .error-msg { color: #d9534f; background: #fdf7f7; padding: 15px; border: 1px solid #d9534f; border-radius: 8px; text-align: center; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    
+    <div class="card event-settings">
+        <label class="event-label">🎉 當前活動名稱 (選擇歷史活動或直接輸入)</label>
+        <div class="event-row">
+            <select id="historySelect" class="history-select" onchange="applyHistorySelect()">
+                <option value="">📂 快速切換...</option>
+            </select>
+            <input type="text" id="currentEventName" class="event-input" placeholder="請輸入活動名稱..." oninput="saveEventName()">
+            <div class="btn-export-group">
+                <button class="btn-export btn-csv" onclick="exportEventCSV()">📊 CSV</button>
+                <button class="btn-export btn-html" onclick="exportEventHTML()">📄 HTML</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="card">
+        <h2 id="formTitle">👋 貴賓報到輸入</h2>
+        <datalist id="commonTitles">
+            <option value="校長"><option value="家長會長"><option value="榮譽會長"><option value="副會長"><option value="教育局長"><option value="督學"><option value="科長"><option value="立法委員"><option value="市議員"><option value="里長"><option value="校友會理事長"><option value="總幹事"><option value="顧問"><option value="區長">
+        </datalist>
+
+        <div class="input-group">
+            <input type="text" id="inputTitle" list="commonTitles" placeholder="頭銜 (可選或輸入)">
+            <input type="text" id="inputName" placeholder="姓名 (例: 王大明)">
+        </div>
+        
+        <div class="btn-group">
+            <button class="primary" id="submitBtn" onclick="submitData()">確認報到</button>
+            <button class="secondary" id="cancelBtn" onclick="cancelEdit()" style="display:none;">取消修改</button>
+        </div>
+    </div>
+
+    <div class="list-header">
+        <h3>📋 名單列表</h3>
+        <button class="refresh-btn" onclick="loadList()">🔄 重新整理</button>
+    </div>
+
+    <div class="card list-area" style="padding: 0; box-shadow: none; background: transparent;">
+        <div class="toolbar">
+            <input type="text" id="searchInput" placeholder="🔍 搜尋..." oninput="renderList()">
+            <select id="sortSelect" class="form-control" onchange="renderList()">
+                <option value="newest">🕒 最新</option>
+                <option value="oldest">🕒 最早</option>
+                <option value="name">🔤 姓名</option>
+            </select>
+        </div>
+
+        <div id="guestList">
+            <div class="loading">載入中...</div>
+        </div>
+    </div>
+</div>
+
+<script>
+    let allGuests = [];
+    let editingId = null; 
+    let isProcessing = false;
+
+    window.onload = function() {
+        const savedEvent = localStorage.getItem('school_event_name');
+        if (savedEvent) {
+            document.getElementById('currentEventName').value = savedEvent;
+        }
+        loadList();
+    }
+
+    function saveEventName() {
+        if(!editingId) {
+            const name = document.getElementById('currentEventName').value;
+            localStorage.setItem('school_event_name', name);
+            renderList();
+        }
+    }
+
+    function checkUrl() {
+        if (SCRIPT_URL.includes('你的_GOOGLE') || SCRIPT_URL === '') {
+            document.getElementById('guestList').innerHTML = `
+                <div class="error-msg">⚠️ 尚未設定連線網址</div>`;
+            return false;
+        }
+        return true;
+    }
+
+    function loadList() {
+        if (!checkUrl()) return;
+        
+        // 如果正在操作按鈕，先不更新，避免畫面跳動
+        if (isProcessing) return;
+
+        fetch(SCRIPT_URL + '?t=' + new Date().getTime())
+        .then(res => res.ok ? res.json() : Promise.reject("Network error"))
+        .then(data => {
+            allGuests = data;
+            updateHistorySelect();
+            renderList();
+        })
+        .catch(err => {
+            console.error(err);
+            document.getElementById('guestList').innerHTML = '<div class="loading" style="color:red">連線錯誤</div>';
+        });
+    }
+
+    function updateHistorySelect() {
+        const events = new Set();
+        allGuests.forEach(g => { if(g.eventName) events.add(g.eventName); });
+        const select = document.getElementById('historySelect');
+        let html = '<option value="">📂 快速切換...</option>';
+        events.forEach(evt => { html += `<option value="${evt}">${evt}</option>`; });
+        if (select.innerHTML !== html) select.innerHTML = html;
+    }
+
+    function applyHistorySelect() {
+        const select = document.getElementById('historySelect');
+        const val = select.value;
+        if (val) {
+            document.getElementById('currentEventName').value = val;
+            saveEventName(); 
+        }
+        select.value = "";
+    }
+
+    function exportEventCSV() {
+        const currentEvent = document.getElementById('currentEventName').value.trim();
+        if(!currentEvent) return alert("請先輸入或選擇一個活動名稱。");
+        const targetData = allGuests.filter(g => g.eventName === currentEvent);
+        if(targetData.length === 0) return alert(`找不到活動「${currentEvent}」的資料。`);
+        let csvContent = "\uFEFFID,報到時間,頭銜,姓名,狀態,活動名稱\n";
+        targetData.forEach(row => {
+            csvContent += [row.id, `"${row.time}"`, `"${row.title}"`, `"${row.name}"`, row.status, `"${row.eventName}"`].join(",") + "\n";
+        });
+        downloadFile(csvContent, `${currentEvent}_報到名單.csv`, 'text/csv;charset=utf-8;');
+    }
+    
+    function exportEventHTML() {
+        const currentEvent = document.getElementById('currentEventName').value.trim();
+        if(!currentEvent) return alert("請先輸入或選擇一個活動名稱。");
+        const targetData = allGuests.filter(g => g.eventName === currentEvent);
+        if(targetData.length === 0) return alert(`找不到活動「${currentEvent}」的資料。`);
+        targetData.sort((a, b) => a.id - b.id);
+        let rows = "";
+        targetData.forEach((g, index) => {
+             const statusClass = (g.status === '在場') ? 'status-in' : 'status-out';
+             rows += `<tr><td>${index + 1}</td><td>${g.time}</td><td>${g.title}</td><td>${g.name}</td><td><span class="status-tag ${statusClass}">${g.status}</span></td></tr>`;
+        });
+        const now = new Date().toLocaleString('zh-TW', { hour12: false });
+        const htmlContent = `<!DOCTYPE html><html lang="zh-TW"><head><meta charset="UTF-8"><title>${currentEvent} - 報到名單</title><style>body { font-family: "Microsoft JhengHei", sans-serif; padding: 40px; background-color: #f4f6f8; color: #333; } .container { max-width: 900px; margin: 0 auto; background: white; padding: 40px; border-radius: 15px; box-shadow: 0 5px 20px rgba(0,0,0,0.05); } h1 { text-align: center; color: #6f42c1; border-bottom: 2px solid #eee; padding-bottom: 20px; } table { width: 100%; border-collapse: collapse; margin-top: 20px; } th { background-color: #6f42c1; color: white; padding: 15px; text-align: left; } td { padding: 12px 15px; border-bottom: 1px solid #eee; } tr:nth-child(even) { background-color: #f9f9f9; } .status-tag { padding: 5px 10px; border-radius: 20px; font-weight: bold; font-size: 12px; } .status-in { background-color: #d4edda; color: #155724; } .status-out { background-color: #f8d7da; color: #721c24; }</style></head><body><div class="container"><h1>${currentEvent} - 貴賓報到名單</h1><div>匯出時間：${now} | 人數：${targetData.length}</div><table><thead><tr><th>序號</th><th>時間</th><th>頭銜</th><th>姓名</th><th>狀態</th></tr></thead><tbody>${rows}</tbody></table></div></body></html>`;
+        downloadFile(htmlContent, `${currentEvent}_完整報表.html`, 'text/html;charset=utf-8;');
+    }
+
+    function downloadFile(content, fileName, mimeType) {
+        const blob = new Blob([content], { type: mimeType });
+        const link = document.createElement("a");
+        const url = URL.createObjectURL(blob);
+        link.setAttribute("href", url);
+        link.setAttribute("download", fileName);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    }
+
+    function renderList() {
+        const listDiv = document.getElementById('guestList');
+        const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+        const sortType = document.getElementById('sortSelect').value;
+        const currentEventFilter = document.getElementById('currentEventName').value.trim(); 
+
+        let filtered = allGuests.filter(guest => {
+            const matchSearch = (guest.name && guest.name.toLowerCase().includes(searchTerm)) || 
+                                (guest.title && guest.title.toLowerCase().includes(searchTerm));
+            const matchEvent = currentEventFilter ? (guest.eventName === currentEventFilter) : true;
+            
+            // 單純過濾掉已刪除的資料
+            const matchStatus = (guest.status !== '已刪除'); 
+            
+            return matchSearch && matchEvent && matchStatus;
+        });
+
+        if (sortType === 'newest') filtered.sort((a, b) => b.id - a.id);
+        else if (sortType === 'oldest') filtered.sort((a, b) => a.id - b.id);
+        else if (sortType === 'name') filtered.sort((a, b) => a.name.localeCompare(b.name, "zh-Hant"));
+
+        listDiv.innerHTML = '';
+        if (filtered.length === 0) {
+            listDiv.innerHTML = '<div class="loading">找不到相符資料</div>';
+            return;
+        }
+
+        filtered.forEach(guest => {
+            const isLeft = guest.status === '已離席';
+            const itemClass = isLeft ? 'left' : '';
+            const statusBtnText = isLeft ? '改為在場' : '設為離席';
+            const statusBtnClass = isLeft ? 'restore' : '';
+            const eventTag = guest.eventName ? `<span class="event-tag">${guest.eventName}</span>` : '';
+
+            const item = document.createElement('div');
+            item.className = `guest-item ${itemClass}`;
+            
+            item.innerHTML = `
+                <div class="info">
+                    <div class="name-row">
+                        <span class="guest-title">${guest.title}</span>
+                        <span class="guest-name">${guest.name}</span>
+                    </div>
+                    <span class="meta">${eventTag}${guest.time}</span>
+                </div>
+                <div class="actions">
+                    <button class="btn-sm btn-edit" onclick="enterEditMode('${guest.id}')">✏️ 修改</button>
+                    <button class="btn-sm btn-status ${statusBtnClass}" onclick="toggleStatus('${guest.id}')">${statusBtnText}</button>
+                </div>
+            `;
+            listDiv.appendChild(item);
+        });
+    }
+
+    function submitData() {
+        if (!checkUrl()) return;
+        const name = document.getElementById('inputName').value.trim();
+        const title = document.getElementById('inputTitle').value.trim();
+        const eventName = document.getElementById('currentEventName').value.trim(); 
+        
+        if (!name) return alert('請輸入姓名');
+        if (!eventName && !editingId) {
+            if(!confirm('您尚未輸入「活動名稱」，確定要繼續嗎？')) return;
+        }
+
+        isProcessing = true; 
+        const btn = document.getElementById('submitBtn');
+        const originalText = btn.innerText;
+        btn.disabled = true;
+        btn.innerText = '處理中...';
+
+        const action = editingId ? 'update' : 'add';
+        const payload = { action: action, name: name, title: title, eventName: eventName };
+        if(editingId) payload.id = editingId;
+
+        fetch(SCRIPT_URL, {
+            method: 'POST',
+            body: JSON.stringify(payload)
+        })
+        .then(res => res.json())
+        .then(data => {
+            cancelEdit(); 
+            loadList();
+        })
+        .catch(err => alert('發生錯誤'))
+        .finally(() => {
+            // 這裡不需要延遲，因為 submitData 後我們立刻呼叫了 loadList() 重新抓取
+            // 且此時通常不會有 "跳回去" 的問題 (因為是新增或修改，不是切換狀態)
+            isProcessing = false; 
+            btn.disabled = false;
+            if(btn.innerText === '處理中...') btn.innerText = originalText;
+        });
+    }
+
+    function enterEditMode(id) {
+        const guest = allGuests.find(g => g.id.toString() === id.toString());
+        if (!guest) return alert("找不到資料");
+
+        document.getElementById('inputName').value = guest.name;
+        document.getElementById('inputTitle').value = guest.title;
+        if(guest.eventName) document.getElementById('currentEventName').value = guest.eventName;
+
+        editingId = id;
+        const submitBtn = document.getElementById('submitBtn');
+        submitBtn.innerText = '確認修改';
+        submitBtn.className = 'primary warning'; 
+        
+        document.getElementById('cancelBtn').style.display = 'block'; 
+        
+        document.getElementById('formTitle').innerText = '✏️ 修改貴賓資料';
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function cancelEdit() {
+        editingId = null;
+        document.getElementById('inputName').value = '';
+        document.getElementById('inputTitle').value = '';
+        const savedEvent = localStorage.getItem('school_event_name');
+        if (savedEvent) document.getElementById('currentEventName').value = savedEvent;
+
+        const submitBtn = document.getElementById('submitBtn');
+        submitBtn.innerText = '確認報到';
+        submitBtn.className = 'primary'; 
+        
+        document.getElementById('cancelBtn').style.display = 'none';
+        
+        document.getElementById('formTitle').innerText = '👋 貴賓報到輸入';
+        renderList();
+    }
+
+    function toggleStatus(id) {
+        if (!checkUrl()) return;
+        
+        isProcessing = true; // 鎖定！暫停自動更新
+        const guestIndex = allGuests.findIndex(g => g.id.toString() === id.toString());
+        if (guestIndex !== -1) {
+            const oldStatus = allGuests[guestIndex].status;
+            const newStatus = (oldStatus === '在場') ? '已離席' : '在場';
+            
+            // 1. 樂觀更新
+            allGuests[guestIndex].status = newStatus;
+            renderList();
+
+            // 2. 傳送請求
+            fetch(SCRIPT_URL, {
+                method: 'POST',
+                body: JSON.stringify({ action: 'toggle', id: id })
+            })
+            .then(res => res.json())
+            .then(() => { 
+                // 3. 關鍵修正：成功後，等待 4 秒再解鎖
+                // 這樣可以避免下一次自動更新抓到舊資料
+                setTimeout(() => { isProcessing = false; }, 4000); 
+            })
+            .catch(err => {
+                alert('連線失敗，狀態還原。');
+                allGuests[guestIndex].status = oldStatus;
+                renderList();
+                isProcessing = false;
+            });
+        }
+    }
+
+    setInterval(() => {
+        if (!SCRIPT_URL.includes('你的_GOOGLE') && SCRIPT_URL !== '') {
+            if(!editingId && !isProcessing && !document.getElementById('searchInput').value) loadList();
+        }
+    }, 5000); 
+</script>
+
+</body>
+</html>
