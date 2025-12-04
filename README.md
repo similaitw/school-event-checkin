@@ -4,6 +4,14 @@
 
 無需架設主機、資料庫，完全免費且開源，只要有 Google 帳號即可部署使用。
 
+🔗 線上演示 (Demo)
+
+接待處中控台 (Admin)
+https://similaitw.github.io/school-event-checkin/admin.html
+
+司儀儀表板 (Dashboard)
+https://similaitw.github.io/school-event-checkin/dashboard.html
+
 ✨ 主要功能
 
 📋 接待處中控台 (Admin)
@@ -105,9 +113,32 @@ G1: 標記
 const SCRIPT_URL = '請將你的_GOOGLE_APPS_SCRIPT_網址貼在這裡';
 
 
+
 將引號內的文字替換為步驟 2 複製的網址。
 
 儲存檔案。
+
+步驟 4：使用 GitHub Pages 託管前端網頁 (推薦)
+
+這可以讓您獲得一個公開的網址 (例如 https://yourname.github.io/...)，方便分享給工作人員。
+
+登入 GitHub，點擊右上角 + > New repository。
+
+Repository name 輸入專案名稱 (例如 school-event-checkin)，選擇 Public，點擊 Create repository。
+
+點擊 uploading an existing file，將修改好的 admin.html 與 dashboard.html 拖曳上傳並 Commit。
+
+進入該儲存庫的 Settings > 左側選單點選 Pages。
+
+在 Build and deployment > Branch 區塊，選擇 main (或 master)，資料夾保持 / (root)，點擊 Save。
+
+等待約 1~2 分鐘後重新整理頁面，上方會出現您的專屬網址。
+
+您的系統網址將會是：
+
+中控台：https://您的帳號.github.io/專案名稱/admin.html
+
+儀表板：https://您的帳號.github.io/專案名稱/dashboard.html
 
 📖 使用說明
 
@@ -138,6 +169,7 @@ const SCRIPT_URL = '請將你的_GOOGLE_APPS_SCRIPT_網址貼在這裡';
 ├── admin.html        # 接待處中控台 (前端介面)
 ├── dashboard.html    # 司儀儀表板 (前端介面)
 └── README.md         # 專案說明文件
+
 
 
 ⚠️ 注意事項
